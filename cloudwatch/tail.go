@@ -100,9 +100,7 @@ func (cwl *CW) Tail(logGroupName *string, logStreamName *string, follow *bool, s
 		for range cacheTicker.C {
 			size := cache.Size()
 			if size >= 5000 {
-				if *cwl.debug {
-					fmt.Printf(">>>cache reset:%d,\n ", size)
-				}
+				cwl.logger.Printf(">>>cache reset:%d,\n ", size)
 				cache.Reset()
 			}
 		}
@@ -145,18 +143,14 @@ func (cwl *CW) Tail(logGroupName *string, logStreamName *string, follow *bool, s
 
 					if eventTimestamp != lastSeenTimestamp {
 						if eventTimestamp < lastSeenTimestamp {
-							if *cwl.debug {
-								fmt.Printf("OLD EVENT:%s, evTS:%d, lTS:%d, cache size:%d \n", event, eventTimestamp, lastSeenTimestamp, cache.Size())
-							}
+							cwl.logger.Printf("OLD EVENT:%s, evTS:%d, lTS:%d, cache size:%d \n", event, eventTimestamp, lastSeenTimestamp, cache.Size())
 						}
 						lastSeenTimestamp = eventTimestamp
 					}
 					cache.Add(*event.EventId)
 					ch <- event
 				} else {
-					if *cwl.debug {
-						fmt.Printf("%s already seen\n", *event.EventId)
-					}
+					cwl.logger.Printf("%s already seen\n", *event.EventId)
 				}
 			}
 		}
@@ -165,9 +159,7 @@ func (cwl *CW) Tail(logGroupName *string, logStreamName *string, follow *bool, s
 			if !*follow {
 				close(ch)
 			} else {
-				if *cwl.debug {
-					fmt.Println("LAST PAGE")
-				}
+				cwl.logger.Println("LAST PAGE")
 				idle <- true
 			}
 		}
@@ -184,9 +176,7 @@ func (cwl *CW) Tail(logGroupName *string, logStreamName *string, follow *bool, s
 				if error != nil {
 					if awsErr, ok := error.(awserr.Error); ok {
 						if awsErr.Code() == "ThrottlingException" {
-							if *cwl.debug {
-								fmt.Printf("Rate exceeded for %s. Wait for 250ms then retry.\n", *logGroupName)
-							}
+							cwl.logger.Printf("Rate exceeded for %s. Wait for 250ms then retry.\n", *logGroupName)
 							//Try again. Wait and fire request again. 1 Retry allowed.
 							time.Sleep(250 * time.Millisecond)
 
@@ -202,9 +192,7 @@ func (cwl *CW) Tail(logGroupName *string, logStreamName *string, follow *bool, s
 					}
 				}
 			case <-time.After(5 * time.Millisecond):
-				if *cwl.debug {
-					fmt.Printf("%s still tailing, Skip polling.\n", *logGroupName)
-				}
+				cwl.logger.Printf("%s still tailing, Skip polling.\n", *logGroupName)
 			}
 		}
 	}()
