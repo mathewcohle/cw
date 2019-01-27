@@ -52,7 +52,7 @@ func timestampToTime(timeStamp string, local bool) (time.Time, error) {
 	return t, nil
 }
 
-func formatLogMsg(ev logEvent, tail TailCmd) string {
+func formatLogMsg(ev logEvent, tail tailCmd) string {
 	msg := *ev.logEvent.Message
 	if tail.PrintEventID {
 		msg = fmt.Sprintf("%s - %s", color.YellowString(*ev.logEvent.EventId), msg)

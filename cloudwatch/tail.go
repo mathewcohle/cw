@@ -187,6 +187,8 @@ func (cwl *CW) Tail(logGroupName *string, logStreamName *string, follow *bool, s
 								}
 							}
 						} else {
+							//TODO add specific message about which log group is missing
+							//TODO do not fail all process is one log groups out many is missing
 							log.Fatalf(awsErr.Message())
 						}
 					}

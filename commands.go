@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/alecthomas/kong"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/lucagrulla/cw/cloudwatch"
 )
@@ -18,69 +19,98 @@ type logEvent struct {
 	logGroup string
 }
 
-type LsCmd struct {
-	GroupsCmd  LsGroupsCmd  `cmd name:"groups" help:"Show all groups."`
-	StreamsCmd LsStreamsCmd `cmd name:"streams" help:"Show all streams in a given log group."`
+type lsCmd struct {
+	GroupsCmd  lsGroupsCmd  `cmd:"" name:"groups" help:"Show all groups."`
+	StreamsCmd lsStreamsCmd `cmd:"" name:"streams" help:"Show all streams in a given log group." `
 }
 
-type LsGroupsCmd struct {
-}
+type lsGroupsCmd struct{}
 
-func (ls *LsGroupsCmd) Run(c *cloudwatch.CW) error {
+func (ls *lsGroupsCmd) Run(c *cloudwatch.CW) error {
 	for msg := range c.LsGroups() {
 		fmt.Println(*msg)
 	}
 	return nil
 }
 
-type LsStreamsCmd struct {
-	LogGroupName string `arg required help:"The log group name."`
+type lsStreamsCmd struct {
+	LogGroupName string `arg:"" required:"" help:"The log group name."`
 }
 
-func (ls LsStreamsCmd) Run(c *cloudwatch.CW) error {
+func (ls lsStreamsCmd) Run(c *cloudwatch.CW) error {
 	for msg := range c.LsStreams(&ls.LogGroupName, nil) {
 		fmt.Println(*msg)
 	}
 	return nil
 }
 
-type TailCmd struct {
-	LogGroupStreamName []string `arg required name:"groupName[:logStreamPrefix]" help:"The log group and stream name, with group:prefix syntax. Stream name can be just the prefix. If no stream name is specified all stream names in the given group will be tailed. Multiple group/stream tuple can be passed. e.g. cw tail group1:prefix1 group2:prefix2 group3:prefix3."`
-	Follow             bool     `"flag help:Don't stop when the end of streams is reached, but rather wait for additional data to be appended." short:"f" default:"false"`
-	PrintTimeStamp     bool     `flag name:"timestamp" help:"Print the event timestamp." short:"t" default:"false"`
-	PrintStreamName    bool     `flag name:"stream-name" help:"Print the log stream name this event belongs to." short:"s"`
-	PrintGroupName     bool     `flag name:"group-name" help:"Print the log group name this event belongs to." short:"n"`
-	PrintEventID       bool     `flag name:"event-id" help:"Print the event Id." short:"i" default:"false"`
-	StartTime          string   `flag short:"b" default:"NOW" help:"The UTC start time. Passed as either date/time or human-friendly format. The human-friendly format accepts the number of hours and minutes prior to the present. Denote hours with 'h' and minutes with 'm' i.e. 80m, 4h30m. If just time is used (format: hh[:mm]) it is expanded to today at the given time. Full available date/time format: 2017-02-27[T09[:00[:00]]."`
-	EndTime            string   `flag short:"e" default:"" help:"The UTC end time. Passed as either date/time or human-friendly format. The human-friendly format accepts the number of hours and minutes prior to the present. Denote hours with 'h' and minutes with 'm' i.e. 80m, 4h30m. If just time is used (format: hh[:mm]) it is expanded to today at the given time. Full available date/time format: 2017-02-27[T09[:00[:00]]."`
-	local              bool     `flag help:"Treat date and time in Local timezone." short:"l" default:"false"`
-	grep               string   `flag help:"Pattern to filter logs by. See http://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/FilterAndPatternSyntax.html for syntax." short:"g" default:""`
-	grepv              string   `flag help:"Equivalent of grep --invert-match. Invert match pattern to filter logs by." short:"v" default:""`
+type tailCmd struct {
+	LogGroupStreamName []string `arg:"" required:"" name:"groupName[:logStreamPrefix]" help:"The log group and stream name, with group:prefix syntax. Stream name can be just the prefix. If no stream name is specified all stream names in the given group will be tailed. Multiple group/stream tuple can be passed. e.g. cw tail group1:prefix1 group2:prefix2 group3:prefix3."`
+	Follow             bool     `flag:"" help:"Don't stop when the end of streams is reached, but rather wait for additional data to be appended." short:"f" default:"false"`
+	PrintTimeStamp     bool     `flag:"" name:"timestamp" help:"Print the event timestamp." short:"t" default:"false"`
+	PrintStreamName    bool     `flag:"" name:"stream-name" help:"Print the log stream name this event belongs to." short:"s"`
+	PrintGroupName     bool     `flag:"" name:"group-name" help:"Print the log group name this event belongs to." short:"n"`
+	PrintEventID       bool     `flag:"" name:"event-id" help:"Print the event Id." short:"i" default:"false"`
+	StartTime          string   `flag:"" short:"b" default:"NOW" help:"The UTC start time. Passed as either date/time or human-friendly format. The human-friendly format accepts the number of hours and minutes prior to the present. Denote hours with 'h' and minutes with 'm' i.e. 80m, 4h30m. If just time is used (format: hh[:mm]) it is expanded to today at the given time. Full available date/time format: 2017-02-27[T09[:00[:00]]."`
+	EndTime            string   `flag:"" short:"e" default:"" help:"The UTC end time. Passed as either date/time or human-friendly format. The human-friendly format accepts the number of hours and minutes prior to the present. Denote hours with 'h' and minutes with 'm' i.e. 80m, 4h30m. If just time is used (format: hh[:mm]) it is expanded to today at the given time. Full available date/time format: 2017-02-27[T09[:00[:00]]."`
+	local              bool     `flag:"" help:"Treat date and time in Local timezone." short:"l" default:"false"`
+	grep               string   `flag:"" help:"Pattern to filter logs by. See http://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/FilterAndPatternSyntax.html for syntax." short:"g" default:""`
+	grepv              string   `flag:"" help:"Equivalent of grep --invert-match. Invert match pattern to filter logs by." short:"v" default:""`
 }
 
-func (tail *TailCmd) BeforeApply() error {
-	fmt.Println("before apply", tail)
+func (tail *tailCmd) BeforeApply() error {
 	if tail.StartTime == "NOW" {
 		tail.StartTime = startTime
 	}
 	return nil
 }
-func (tail *TailCmd) BeforeResolve() error {
-	fmt.Println("before resolve")
-	info, _ := os.Stdin.Stat()
-	if info.Size() > 0 {
-		scanner := bufio.NewScanner(os.Stdin)
-		scanner.Scan()
-		input := scanner.Text()
-		// reader := bufio.NewReader(os.Stdin)
-		// input, _ := reader.ReadString('\n')
-		tail.LogGroupStreamName = append(tail.LogGroupStreamName, input)
-		fmt.Println(input, tail.LogGroupStreamName)
+
+type stdIn string
+
+func (tail *tailCmd) BeforeResolve(ctx *kong.Context) error {
+	var additionalInput stdIn
+	additionalInput = fromStdin(tail, ctx)
+
+	if additionalInput != "" {
+
+		node := ctx.Selected()
+		if node == nil {
+			node = ctx.Model.Node
+		}
+		for _, arg := range node.Positional {
+			if arg.Required && !arg.Set {
+				// fmt.Println("no more required:", arg.Name)
+				// fmt.Println("Mark argument as optional:", arg.Name)
+				arg.Required = false
+				arg.Set = true
+			}
+		}
 	}
+	ctx.Bind(additionalInput)
+
 	return nil
 }
 
-func (tail TailCmd) Run(cwl *cloudwatch.CW, logger *log.Logger) error {
+func fromStdin(tail *tailCmd, ctx *kong.Context) stdIn {
+	info, _ := os.Stdin.Stat()
+	if info.Size() > 0 { //TODO check that is an actual shell pipe
+		// fmt.Println("it's a pipe")
+		scanner := bufio.NewScanner(os.Stdin)
+		scanner.Scan()
+		input := scanner.Text()
+		return stdIn(input)
+	}
+	return ""
+}
+
+func (tail *tailCmd) Run(cwl *cloudwatch.CW, log *log.Logger, additionalInput stdIn) error {
+	if additionalInput != "" {
+		log.Printf("Additional input from stdin: %s\n", additionalInput)
+		tokens := strings.Split(string(additionalInput), " ")
+
+		tail.LogGroupStreamName = append(tail.LogGroupStreamName, tokens...)
+	}
+
 	st, err := timestampToTime(tail.StartTime, tail.local)
 	if err != nil {
 		log.Fatalf("can't parse %s as a valid start date/time", tail.StartTime)
@@ -100,8 +130,9 @@ func (tail TailCmd) Run(cwl *cloudwatch.CW, logger *log.Logger) error {
 
 	triggerChannels := make([]chan<- time.Time, len(tail.LogGroupStreamName))
 
-	coordinator := &tailCoordinator{log: logger}
+	coordinator := &tailCoordinator{log: log}
 	for idx, gs := range tail.LogGroupStreamName {
+		log.Printf("tailing %s\n", gs)
 		trigger := make(chan time.Time, 1)
 		go func(groupStream string) {
 			tokens := strings.Split(groupStream, ":")
@@ -124,12 +155,12 @@ func (tail TailCmd) Run(cwl *cloudwatch.CW, logger *log.Logger) error {
 
 	go func() {
 		wg.Wait()
-		logger.Println("closing main channel...")
+		log.Println("closing main channel...")
 		close(out)
 	}()
 
 	for logEv := range out {
-		fmt.Println(formatLogMsg(*logEv, tail))
+		fmt.Println(formatLogMsg(*logEv, *tail))
 	}
 	return nil
 }

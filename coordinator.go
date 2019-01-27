@@ -48,7 +48,7 @@ func (f *tailCoordinator) remove(c chan<- time.Time) {
 
 	if f.targets.Len() == 1 {
 		f.targets = ring.New(0)
-		log.Println("coordinator: single node buffer: reset", f.targets.Len())
+		f.log.Println("coordinator: single node buffer: reset", f.targets.Len())
 		return
 	}
 
@@ -59,7 +59,7 @@ func (f *tailCoordinator) remove(c chan<- time.Time) {
 			f.targets = f.targets.Prev()
 			f.targets.Unlink(1)
 			close(targetChan)
-			log.Printf("coordinator: channel found and removed at index: %d\n", visited)
+			f.log.Printf("coordinator: channel found and removed at index: %d\n", visited)
 			break
 		}
 		f.targets = f.targets.Next()

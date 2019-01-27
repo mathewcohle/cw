@@ -18,40 +18,41 @@ var (
 
 	cli struct {
 		Version    kong.VersionFlag `help:"Show version."`
-		Debug      bool             `flag hidden:"" help:"Enable debug mode." short:"d"` //TODO hidden is not working
-		awsProfile string           `flag name:"profile" help:"The target AWS profile. By default cw will use the default profile defined in the .aws/credentials file." short:"p" placeholder:"PROFILE"`
-		awsRegion  string           `flag name:"region" help:"The target AWS region. By default cw will use the default profile defined in the .aws/credentials file." short:"r" placeholder:"REGION"`
-		NoColor    bool             `flag help:"Disable coloured output." short:"c"`
+		Debug      bool             `flag:"" hidden:"" help:"Enable debug mode." short:"d"` //TODO hidden is not working
+		AwsProfile string           `flag:"" name:"profile" help:"The target AWS profile. By default cw will use the default profile defined in the .aws/credentials file." short:"p" placeholder:"PROFILE"`
+		AwsRegion  string           `flag:"" name:"region" help:"The target AWS region. By default cw will use the default profile defined in the .aws/credentials file." short:"r" placeholder:"REGION"`
+		NoColor    bool             `flag:"" help:"Disable coloured output." short:"c"`
 
-		Tail TailCmd `cmd help:"Tail log groups/streams."`
-		Ls   LsCmd   `cmd help:"Show an entity."`
+		Tail tailCmd `cmd:"" help:"Tail log groups/streams."`
+		Ls   lsCmd   `cmd:"" help:"Show an entity."`
 	}
 )
 
 func main() {
 	// kp.Version(version).Author("Luca Grulla")
+	defer newVersionMsg(version, fetchLatestVersion())
+	go versionCheckOnSigterm()
+
 	log := log.New(ioutil.Discard, "", log.LstdFlags)
 
-	cwClient := cloudwatch.New(&cli.awsProfile, &cli.awsRegion, log)
 	ctx := kong.Parse(&cli, kong.Description("The best way to tail AWS Cloudwatch Logs from your terminal."),
 		kong.Vars{
-			"startTime": startTime,
-			"version":   version,
-		}, kong.Bind(cwClient, log))
+			"version": version,
+		},
+		// kong.ConfigureHelp(kong.HelpOptions{
+		// 	// Summary: true,
+		// })
+	)
 
+	color.NoColor = cli.NoColor
 	if cli.Debug {
 		log.SetOutput(os.Stdout)
 		log.Println("Debug mode is on.")
 	}
-	log.Printf("awsProfile: %s, awsRegion: %s\n", cli.awsProfile, cli.awsRegion)
 
-	if cli.NoColor {
-		color.NoColor = true
-	}
+	log.Printf("awsProfile: %s, awsRegion: %s\n", cli.AwsProfile, cli.AwsRegion)
+	cwClient := cloudwatch.New(&cli.AwsProfile, &cli.AwsRegion, log)
 
-	defer newVersionMsg(version, fetchLatestVersion(), cli.NoColor)
-	go versionCheckOnSigterm()
-
-	err := ctx.Run()
+	err := ctx.Run(cwClient, log)
 	ctx.FatalIfErrorf(err)
 }
