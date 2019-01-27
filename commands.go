@@ -93,8 +93,8 @@ func (tail *tailCmd) BeforeResolve(ctx *kong.Context) error {
 
 func fromStdin(tail *tailCmd, ctx *kong.Context) stdIn {
 	info, _ := os.Stdin.Stat()
-	if info.Size() > 0 { //TODO check that is an actual shell pipe
-		// fmt.Println("it's a pipe")
+
+	if info.Mode()&os.ModeNamedPipe != 0 {
 		scanner := bufio.NewScanner(os.Stdin)
 		scanner.Scan()
 		input := scanner.Text()

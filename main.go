@@ -11,10 +11,13 @@ import (
 	"github.com/lucagrulla/cw/cloudwatch"
 )
 
-var (
+const (
 	timeFormat = "2006-01-02T15:04:05"
-	startTime  = time.Now().UTC().Add(-30 * time.Second).Format(timeFormat)
 	version    = "3.0.1"
+)
+
+var (
+	startTime = time.Now().UTC().Add(-30 * time.Second).Format(timeFormat)
 
 	cli struct {
 		Version    kong.VersionFlag `help:"Show version."`
@@ -39,9 +42,7 @@ func main() {
 		kong.Vars{
 			"version": version,
 		},
-		// kong.ConfigureHelp(kong.HelpOptions{
-		// 	// Summary: true,
-		// })
+		kong.UsageOnError(),
 	)
 
 	color.NoColor = cli.NoColor
