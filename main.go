@@ -20,11 +20,11 @@ var (
 	startTime = time.Now().UTC().Add(-30 * time.Second).Format(timeFormat)
 
 	cli struct {
-		Version    kong.VersionFlag `help:"Show version."`
-		Debug      bool             `flag:"" hidden:"" help:"Enable debug mode." short:"d"` //TODO hidden is not working
-		AwsProfile string           `flag:"" name:"profile" help:"The target AWS profile. By default cw will use the default profile defined in the .aws/credentials file." short:"p" placeholder:"PROFILE"`
-		AwsRegion  string           `flag:"" name:"region" help:"The target AWS region. By default cw will use the default profile defined in the .aws/credentials file." short:"r" placeholder:"REGION"`
-		NoColor    bool             `flag:"" help:"Disable coloured output." short:"c"`
+		Version kong.VersionFlag `help:"Show version."`
+		// Debug      bool             `flag:"" hidden:"" help:"Enable debug mode." short:"d"` //TODO hidden is not working
+		AwsProfile string `flag:"" name:"profile" help:"The target AWS profile. By default cw will use the default profile defined in the .aws/credentials file." short:"p" placeholder:"PROFILE"`
+		AwsRegion  string `flag:"" name:"region" help:"The target AWS region. By default cw will use the default profile defined in the .aws/credentials file." short:"r" placeholder:"REGION"`
+		NoColor    bool   `flag:"" help:"Disable coloured output." short:"c"`
 
 		Tail tailCmd `cmd:"" help:"Tail log groups/streams."`
 		Ls   lsCmd   `cmd:"" help:"Show an entity."`
@@ -46,7 +46,8 @@ func main() {
 	)
 
 	color.NoColor = cli.NoColor
-	if cli.Debug {
+	if false {
+		// if cli.Debug {
 		log.SetOutput(os.Stdout)
 		log.Println("Debug mode is on.")
 	}
